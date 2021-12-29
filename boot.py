@@ -162,23 +162,6 @@ except:
 print('Dispositivo Termometor DS18B20 Encontrado:',roms)
 collect()
 
-def tm_bo():
-    roms = ds_sensor.scan()
-    try:
-        collect()
-        ds_sensor.convert_temp()
-        bt = ds_sensor.read_temp(roms[0])
-        collect()
-        if bt != None:
-            a['temperatura'] = round(bt,2)
-        return round(bt,2)
-    except OneWireError:
-        print('Error en sensor de temperatura...')
-    except RuntimeError as e:
-        print('OneWire Error:'+ e)
-    except:
-        print('OneWireError desconocido...')
-
 #INICIALIZANDO WIFI
 collect()
 wlan = WLAN(STA_IF)
@@ -194,7 +177,7 @@ def do_conn_sync(ssid, passwd):
     collect()
     if wlan.isconnected():
         return None
-    print('Intentando conexion a %s...' % ssid)
+    print('Intentando conexion a %s...' % ssid, tm_stmp())
     wlan.connect(ssid, passwd)
     collect()
     for retry in range(100):
@@ -206,13 +189,13 @@ def do_conn_sync(ssid, passwd):
         print('.', end='')
         collect()
     if connected:
-        print('\n¡Conexión Inalámbrica Exitosa!')
+        print('\n¡Conexión Inalámbrica Exitosa!', tm_stmp())
         print(f'Configuración de red\nIP: {wlan.ifconfig()[0]}\nNetmask: {wlan.ifconfig()[1]} \nGateway: {wlan.ifconfig()[2]}\nDNS: {wlan.ifconfig()[3]}')
-        print('Sincronizando con servidor NTP...')
+        print('Sincronizando con servidor NTP...', tm_stmp())
         asyncio.run(tm_sync(secret['ntp_host']))
         collect()
     else:
-        print('\nIntento de Conexion Fallido: ' + ssid)
+        print('\nIntento de Conexion Fallido: ' + ssid, tm_stmp())
         collect()
     return connected
 
@@ -272,7 +255,7 @@ def msg_tx():
         collect()
         return bytes(dumps(a),'UTF-8')
     except ValueError as e:
-        print('Error al procesar paquete JSON de salida:', e)
+        print('Error al procesar paquete JSON de salida:', e, tm_stmp())
  
 def msg_rx(r):
     global task
@@ -290,10 +273,10 @@ def msg_rx(r):
             else:
                 a['com_rx'] = False
         else:
-            print("Error en mando")
+            print("Error en mando", tm_stmp())
         collect()
     except ValueError as e:
-        print('Error al procesar paquete JSON de entrada:', e)
+        print('Error al procesar paquete JSON de entrada:', e, tm_stmp())
         
 #MQTT
 def callback(topic, msg, retained):
@@ -305,9 +288,9 @@ async def conn_han(client):
 async def main_mqtt(client):
     await client.connect()
     while True:
-        await asyncio.sleep(5)
+        await asyncio.sleep(20)
         await client.publish(bytes(secret['topic_pub'],'UTF-8'), msg_tx(), qos = 1)
-        print('Paquete MQTT enviado...')
+        print('Paquete MQTT enviado...', tm_stmp())
         collect()
 
 config['subs_cb'] = callback
@@ -325,6 +308,24 @@ sleep(2)
 collect()
 
 #LOGICA
+async def res_boton():
+    btn_prev = boton_reset.value()
+    while (boton_reset.value() == 1) or (boton_reset.value() == btn_prev):
+        btn_prev = boton_reset.value()
+        await asyncio.sleep(0.04)
+    reset()
+
+async def on_boton():
+    while True:
+        btn_prev = boton_on_off.value()
+        while (boton_on_off.value() == 1) or (boton_on_off.value() == btn_prev):
+            btn_prev = boton_on_off.value()
+            await asyncio.sleep(0.04)
+        if boiler_in() == 1:
+            a['com_rx'] = False
+        else:
+            task = asyncio.create_task(boiler_on())
+    
 async def cuenta(t):
     while t:
         collect()
@@ -341,7 +342,7 @@ async def cuenta(t):
 async def boiler_on():
     timer = int(secret['timer'])
     hora(timer)
-    print('Inicia Secuencia de Encendido...')
+    print('Inicia Secuencia de Encendido...', tm_stmp())
     boiler_out.on()
     led.on()
     oled_reng(2)
@@ -350,14 +351,14 @@ async def boiler_on():
     collect()
     await cuenta(timer)
     collect()
-    print('Temporizador terminado...')
+    print('Temporizador terminado...', tm_stmp())
     boiler_out.off()
     led.off()
     await boiler_off()
     collect()
 
 async def boiler_off():
-    print('Inicia Secuencia de Apagado...')
+    print('Inicia Secuencia de Apagado...', tm_stmp())
     boiler_out.off()
     led.off()
     oled_reng(2)
@@ -369,19 +370,34 @@ def sh_temp():
     collect()
     oled_r4('Cent',95)
     while True:
-        collect()
-        t = tm_bo()
-        if t != None:
-            oled.fill_rect(40,40,55,40,0)
-            oled.text(str(t),40,40)
-            oled.show()
+        collect()       
+        roms = ds_sensor.scan()
+        try:
+            collect()
+            ds_sensor.convert_temp()
+            bt = ds_sensor.read_temp(roms[0])
+            collect()
+            if bt != None:
+                x.acquire()
+                a['temperatura'] = round(bt,2)
+                t = a['temperatura']
+                x.release()
+                oled.fill_rect(40,40,55,10,0)
+                oled.text(str(t),40,40)
+                oled.show()
+        except OneWireError:
+            print('Error en sensor de temperatura...', tm_stmp())
+        except RuntimeError as e:
+            print('OneWire Error:'+ e, tm_stmp())
+        except:
+            print('OneWireError desconocido...', tm_stmp())   
         sleep(1)
 
 def hora(t):
     collect()
     m = RTC().datetime()[5]
     h = RTC().datetime()[4]
-    t = int(t/60)
+    t = int(480+(t/60))
     h1, m1 = divmod(t, 60)
     m = m + m1
     h = h + h1
@@ -391,6 +407,7 @@ def hora(t):
         h = 1
     elif h == 26:
         h = 2
+    oled.fill_rect(75,30,53,10,0)
     oled_r3('{:02d}:{:02d}'.format(h,m),75)
     collect()
      
@@ -433,14 +450,24 @@ except:
 sleep(5)
 collect()
 
-#BUCLE FOR PARA PURGAR LAS PRIMERAS MALAS MEDICIONES DEL DS18B20
-for i in range(5):
-    msg_tx()
-    sleep(1)
+#BUCLE PARA PURGAR LAS PRIMERAS MALAS MEDICIONES DEL DS18B20
+while True:
+    roms = ds_sensor.scan()
     collect()
+    ds_sensor.convert_temp()
+    bt = ds_sensor.read_temp(roms[0])
+    collect()
+    if bt != None:
+        a['temperatura'] = round(bt,2)
+        print('Purga de valores de temperatura:', a['temperatura'],'°C')
+        break
+    sleep(1)
 collect()
 
-#MAIN
+#LOCK DE THREAD
+x = _thread.allocate_lock()
+
+#PANTALLA PRINCIPAL
 oled_cls()
 oled_r0('BOILER SC',26)
 oled_r1('TIMER OFF:',0)
@@ -449,5 +476,9 @@ oled_r3('HORA OFF:',0)
 oled_r2('BOILER OFF!',0)
 collect()
 
+#FUNCIONES PRINCIPALES
+loop = asyncio.get_event_loop()
+task_reset = loop.create_task(res_boton())
+task_on_off = loop.create_task(on_boton())
 _thread.start_new_thread(sh_temp,())
 asyncio.run(main_mqtt(client))
