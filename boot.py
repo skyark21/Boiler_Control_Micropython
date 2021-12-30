@@ -309,21 +309,29 @@ collect()
 
 #LOGICA
 async def res_boton():
+    collect()
     btn_prev = boton_reset.value()
     while (boton_reset.value() == 1) or (boton_reset.value() == btn_prev):
+        collect()
         btn_prev = boton_reset.value()
         await asyncio.sleep(0.04)
+    collect()
     reset()
 
 async def on_boton():
+    collect()
     while True:
+        collect()
         btn_prev = boton_on_off.value()
         while (boton_on_off.value() == 1) or (boton_on_off.value() == btn_prev):
+            collect()
             btn_prev = boton_on_off.value()
             await asyncio.sleep(0.04)
         if boiler_in() == 1:
+            collect()
             a['com_rx'] = False
         else:
+            collect()
             task = asyncio.create_task(boiler_on())
     
 async def cuenta(t):
@@ -466,7 +474,7 @@ collect()
 
 #LOCK DE THREAD
 x = _thread.allocate_lock()
-
+collect()
 #PANTALLA PRINCIPAL
 oled_cls()
 oled_r0('BOILER SC',26)
@@ -477,8 +485,14 @@ oled_r2('BOILER OFF!',0)
 collect()
 
 #FUNCIONES PRINCIPALES
+collect()
 loop = asyncio.get_event_loop()
+collect()
 task_reset = loop.create_task(res_boton())
+collect()
 task_on_off = loop.create_task(on_boton())
+collect()
 _thread.start_new_thread(sh_temp,())
+collect()
 asyncio.run(main_mqtt(client))
+collect()
