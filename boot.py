@@ -47,6 +47,14 @@ with open("secret.json") as f:
     sleep(2)
     collect()
 
+#CARGAR ARCHIVO STANDBY
+with open("standby.json") as f:
+    standby = load(f)
+    print("Se cargo archivo standby...")
+    f.close()
+    sleep(2)
+    collect()
+
 # ESP32
 freq(240000000)
 freq_esp = freq()/1000000
@@ -232,8 +240,7 @@ async def tm_sync(host):
             print('Servidor NTP:', host)
             await asyncio.sleep(1)
             settime()
-            (year, month, mday, weekday, hour, minute,
-             second, milisecond) = RTC().datetime()
+            (year, month, mday, weekday, hour, minute, second, milisecond) = RTC().datetime()
             RTC().init((year, month, mday, weekday, hour-7, minute, second, milisecond))
             print("Tiempo sincronizado:", tm_stmp())
             collect()
