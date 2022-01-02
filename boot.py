@@ -21,7 +21,7 @@ from ds18x20 import DS18X20
 # LIBRERIA MQTT
 from mqtt_as import MQTTClient, config
 # LIBRERIA JSON
-from ujson import dumps, loads, load
+from ujson import dumps, loads, load, dump
 # LIBRERIA OLED
 from ssd1306 import SSD1306_I2C
 # LIBRERIA NTP
@@ -47,7 +47,7 @@ with open("secret.json") as f:
     sleep(2)
     collect()
 
-#CARGAR ARCHIVO STANDBY
+# CARGAR ARCHIVO STANDBY
 with open("standby.json") as f:
     standby = load(f)
     print("Se cargo archivo standby...")
@@ -240,7 +240,8 @@ async def tm_sync(host):
             print('Servidor NTP:', host)
             await asyncio.sleep(1)
             settime()
-            (year, month, mday, weekday, hour, minute, second, milisecond) = RTC().datetime()
+            (year, month, mday, weekday, hour, minute,
+             second, milisecond) = RTC().datetime()
             RTC().init((year, month, mday, weekday, hour-7, minute, second, milisecond))
             print("Tiempo sincronizado:", tm_stmp())
             collect()
@@ -276,11 +277,12 @@ def msg_tx():
         collect()
         if boiler_in.value() == 0:
             a['estado'] = False
+            standby['estado'] = False
         if boiler_in.value() == 1:
             a['estado'] = True
+            standby['estado'] = True
         a['coretemp'] = esp_temp()
         a['timestamp'] = tm_stmp()
-        collect()
         return bytes(dumps(a), 'UTF-8')
     except ValueError as e:
         print('Error al procesar paquete JSON de salida:', e, tm_stmp())
@@ -324,6 +326,8 @@ async def main_mqtt(client):
         await asyncio.sleep(20)
         await client.publish(bytes(secret['topic_pub'], 'UTF-8'), msg_tx(), qos=1)
         print('Paquete MQTT enviado...', tm_stmp())
+        save_standby()
+        print('Estado standby salvado...', tm_stmp())
         collect()
 
 config['subs_cb'] = callback
@@ -352,6 +356,9 @@ def res_boton():
         sleep(0.04)
     collect()
     print('Boton Reset Presionado')
+    standby['estado'] = False
+    standby['timer'] = 0
+    save_standby()
     reset()
 
 
@@ -384,6 +391,7 @@ async def cuenta(t):
         mins, secs = divmod(t, 60)
         oled_t('{:02d}:{:02d}'.format(mins, secs))
         a['timer'] = t
+        standby['timer'] = t
         if a['com_rx'] == False:
             break
 
@@ -414,6 +422,25 @@ async def boiler_off():
     oled_reng(2)
     oled_r2('BOILER OFF!', 0)
     oled_t('00:00')
+    collect()
+
+
+async def boiler_continue():
+    timer = int(standby['timer'])
+    hora(timer)
+    print('Inicia Secuencia de Encendido...', tm_stmp())
+    boiler_out.on()
+    led.on()
+    oled_reng(2)
+    oled_r2('BOILER ON!', 0)
+    a['com_rx'] = True
+    collect()
+    await cuenta(timer)
+    collect()
+    print('Temporizador terminado...', tm_stmp())
+    boiler_out.off()
+    led.off()
+    await boiler_off()
     collect()
 
 
@@ -449,10 +476,9 @@ def hora(t):
     collect()
     m = RTC().datetime()[5]
     h = RTC().datetime()[4]
-    t = int(480+(t/60))
-    h1, m1 = divmod(t, 60)
-    m = m + m1
-    h = h + h1
+    t = int((t+480)/60)
+    x = int((h * 60) + m + t)
+    h, m = divmod(x, 60)
     if h == 24:
         h = 0
     elif h == 25:
@@ -520,6 +546,7 @@ collect()
 # LOCK DE THREAD
 x = _thread.allocate_lock()
 collect()
+
 # PANTALLA PRINCIPAL
 oled_cls()
 oled_r0('BOILER SC', 26)
@@ -529,6 +556,29 @@ oled_r3('HORA OFF:', 0)
 oled_r2('BOILER OFF!', 0)
 collect()
 
+# FUNCIONES ULTIMO ESTADO
+
+
+def save_standby():
+    with open('standby.json', 'w') as outfile:
+        dump(standby, outfile)
+        collect()
+
+
+def ultimo_estado():
+    if standby['estado'] == True:
+        print('Se detecto una operación interurmpida...')
+        sleep(2)
+        print('Se incia secuencia de continuacion de operación...')
+        sleep(2)
+        print('standby.json = ', standby)
+        task = asyncio.create_task(boiler_continue())
+    else:
+        print('No hay operacion interrumpida...')
+
+
+collect()
+
 # FUNCIONES PRINCIPALES
 collect()
 _thread.start_new_thread(res_boton, ())
@@ -536,6 +586,8 @@ collect()
 _thread.start_new_thread(on_boton, ())
 collect()
 _thread.start_new_thread(sh_temp, ())
+collect()
+_thread.start_new_thread(ultimo_estado, ())
 collect()
 asyncio.run(main_mqtt(client))
 collect()
