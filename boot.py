@@ -26,8 +26,7 @@ from ujson import dumps, loads, load, dump
 from ssd1306 import SSD1306_I2C
 # LIBRERIA NTP
 from ntptime import host, settime
-# LIBRERIA DEBUG
-import micropython
+# LIBRERIA MEMORIA RAM
 from gc import enable, collect
 enable()
 
@@ -323,7 +322,6 @@ async def conn_han(client):
 async def main_mqtt(client):
     await client.connect()
     while True:
-        await asyncio.sleep(20)
         await client.publish(bytes(secret['topic_pub'], 'UTF-8'), msg_tx(), qos=1)
         print('Paquete MQTT enviado...', tm_stmp())
         save_standby()
@@ -546,7 +544,6 @@ collect()
 # LOCK DE THREAD
 x = _thread.allocate_lock()
 collect()
-
 # PANTALLA PRINCIPAL
 oled_cls()
 oled_r0('BOILER SC', 26)
@@ -578,7 +575,6 @@ def ultimo_estado():
 
 
 collect()
-
 # FUNCIONES PRINCIPALES
 collect()
 _thread.start_new_thread(res_boton, ())
