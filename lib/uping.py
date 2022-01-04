@@ -7,7 +7,7 @@
 # https://github.com/olavmrk/python-ping/blob/master/ping.py
 # @data: bytes
 def checksum(data):
-    if len(data) & 0x1: # Odd number of bytes
+    if len(data) & 0x1:  # Odd number of bytes
         data += b'\0'
     cs = 0
     for pos in range(0, len(data), 2):
@@ -18,6 +18,7 @@ def checksum(data):
         cs = (cs & 0xffff) + (cs >> 16)
     cs = ~cs & 0xffff
     return cs
+
 
 def ping(host, count=4, timeout=5000, interval=10, quiet=False, size=64):
     import utime
@@ -37,9 +38,9 @@ def ping(host, count=4, timeout=5000, interval=10, quiet=False, size=64):
         "id": uctypes.UINT16 | 4,
         "seq": uctypes.INT16 | 6,
         "timestamp": uctypes.UINT64 | 8,
-    } # packet header descriptor
+    }  # packet header descriptor
     h = uctypes.struct(uctypes.addressof(pkt), pkt_desc, uctypes.BIG_ENDIAN)
-    h.type = 8 # ICMP_ECHO_REQUEST
+    h.type = 8  # ICMP_ECHO_REQUEST
     h.code = 0
     h.checksum = 0
     h.id = urandom.randint(0, 65535)
@@ -49,18 +50,18 @@ def ping(host, count=4, timeout=5000, interval=10, quiet=False, size=64):
     sock = usocket.socket(usocket.AF_INET, usocket.SOCK_RAW, 1)
     sock.setblocking(0)
     sock.settimeout(timeout/1000)
-    addr = usocket.getaddrinfo(host, 1)[0][-1][0] # ip address
+    addr = usocket.getaddrinfo(host, 1)[0][-1][0]  # ip address
     sock.connect((addr, 1))
     not quiet and print("PING %s (%s): %u data bytes" % (host, addr, len(pkt)))
 
-    seqs = list(range(1, count+1)) # [1,2,...,count]
+    seqs = list(range(1, count+1))  # [1,2,...,count]
     c = 1
     t = 0
     n_trans = 0
     n_recv = 0
     finish = False
     while t < timeout:
-        if t==interval and c<=count:
+        if t == interval and c <= count:
             # send packet
             h.checksum = 0
             h.seq = c
@@ -68,7 +69,7 @@ def ping(host, count=4, timeout=5000, interval=10, quiet=False, size=64):
             h.checksum = checksum(pkt)
             if sock.send(pkt) == size:
                 n_trans += 1
-                t = 0 # reset timeout
+                t = 0  # reset timeout
             else:
                 seqs.remove(c)
             c += 1
@@ -79,14 +80,17 @@ def ping(host, count=4, timeout=5000, interval=10, quiet=False, size=64):
             if socks:
                 resp = socks[0].recv(4096)
                 resp_mv = memoryview(resp)
-                h2 = uctypes.struct(uctypes.addressof(resp_mv[20:]), pkt_desc, uctypes.BIG_ENDIAN)
+                h2 = uctypes.struct(uctypes.addressof(
+                    resp_mv[20:]), pkt_desc, uctypes.BIG_ENDIAN)
                 # TODO: validate checksum (optional)
                 seq = h2.seq
-                if h2.type==0 and h2.id==h.id and (seq in seqs): # 0: ICMP_ECHO_REPLY
+                # 0: ICMP_ECHO_REPLY
+                if h2.type == 0 and h2.id == h.id and (seq in seqs):
                     t_elasped = (utime.ticks_us()-h2.timestamp) / 1000
-                    ttl = ustruct.unpack('!B', resp_mv[8:9])[0] # time-to-live
+                    ttl = ustruct.unpack('!B', resp_mv[8:9])[0]  # time-to-live
                     n_recv += 1
-                    not quiet and print("%u bytes from %s: icmp_seq=%u, ttl=%u, time=%f ms" % (len(resp), addr, seq, ttl, t_elasped))
+                    not quiet and print("%u bytes from %s: icmp_seq=%u, ttl=%u, time=%f ms" % (
+                        len(resp), addr, seq, ttl, t_elasped))
                     seqs.remove(seq)
                     if len(seqs) == 0:
                         finish = True
@@ -103,5 +107,6 @@ def ping(host, count=4, timeout=5000, interval=10, quiet=False, size=64):
     # close
     sock.close()
     ret = (n_trans, n_recv)
-    not quiet and print("%u packets transmitted, %u packets received" % (n_trans, n_recv))
+    not quiet and print(
+        "%u packets transmitted, %u packets received" % (n_trans, n_recv))
     return (n_trans, n_recv)
