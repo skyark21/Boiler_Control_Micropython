@@ -302,7 +302,10 @@ def msg_rx(r):
             if boiler_in() == 0:
                 pass
             else:
-                a['com_rx'] = False
+                boiler_out.off()
+                a['timer'] = 0
+                standby['timer'] = 0
+                a['com_rx'] = False        
         else:
             print("Error en mando", tm_stmp())
         collect()
@@ -359,6 +362,7 @@ def res_boton():
     standby['estado'] = False
     standby['timer'] = 0
     save_standby()
+    print('Se guardio estado y timer en 0', tm_stmp())
     reset()
 
 
@@ -372,8 +376,10 @@ def on_boton():
             btn_prev = boton_on_off.value()
             sleep(0.04)
         if boiler_in() == 1:
+            boiler_out.off()
             collect()
             a['com_rx'] = False
+            a['timer'] = 0
             print('Boton OFF Presionado', tm_stmp())
         else:
             collect()
@@ -394,6 +400,7 @@ async def cuenta(t):
         a['timer'] = t
         standby['timer'] = t
         if a['com_rx'] == False:
+            a['timer'] = 0
             break
 
 
@@ -591,3 +598,5 @@ _thread.start_new_thread(ultimo_estado, ())
 collect()
 asyncio.run(main_mqtt(client))
 collect()
+
+
