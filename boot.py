@@ -296,6 +296,7 @@ def msg_rx(r):
             if boiler_in() == 1:
                 pass
             else:
+                boiler_out.on()
                 task = asyncio.create_task(boiler_on())
         elif b['comando'] == False:
             if boiler_in() == 0:
@@ -326,6 +327,7 @@ async def main_mqtt(client):
         print('Paquete MQTT enviado...', tm_stmp())
         save_standby()
         print('Estado standby salvado...', tm_stmp())
+        await asyncio.sleep(1)
         collect()
 
 config['subs_cb'] = callback
@@ -353,7 +355,7 @@ def res_boton():
         btn_prev = boton_reset.value()
         sleep(0.04)
     collect()
-    print('Boton Reset Presionado')
+    print('Boton Reset Presionado', tm_stmp())
     standby['estado'] = False
     standby['timer'] = 0
     save_standby()
@@ -372,11 +374,12 @@ def on_boton():
         if boiler_in() == 1:
             collect()
             a['com_rx'] = False
-            print('Boton OFF Presionado')
+            print('Boton OFF Presionado', tm_stmp())
         else:
             collect()
+            boiler_out.on()
             task = asyncio.create_task(boiler_on())
-            print('Boton ON Presionado')
+            print('Boton ON Presionado', tm_stmp())
 
 
 async def cuenta(t):
@@ -461,6 +464,7 @@ def sh_temp():
                 oled.fill_rect(40, 40, 55, 10, 0)
                 oled.text(str(t), 40, 40)
                 oled.show()
+                collect()
         except OneWireError:
             print('Error en sensor de temperatura...', tm_stmp())
         except RuntimeError as e:
