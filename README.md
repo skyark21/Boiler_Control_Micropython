@@ -52,7 +52,7 @@ This kind of solution here get me happy I have 3 variables that can change in ti
 
 <b>The Satndby File</b>
 
-Something happend here, a blackout (kindof...) I have to change the power supply (cellphone charger) of the prototype because it got unstable and was makeing the microcontroller reboot for no reazon (then i have other issues but you can see in the commits) so i came with this OTHER file that saves thet last state just before the MQTT payload is sended, so if an unwanted reboot happend the microcontroller can pickup from when it left.
+Something happened here, a blackout (kind of...) I have to change the power supply (cellphone charger) of the prototype because it got unstable and was making the microcontroller reboot for no reason (then I have other issues but you can see in the commits) so i came with this OTHER file that saves the last state just before the MQTT payload is sent, so if an unwanted reboot happened the microcontroller can pick up from when it left.
 THIS LITTLE FILE SAVED ME FOR SOME HEADACHES.
 ```
 {
