@@ -9,7 +9,7 @@
 from machine import Pin, SoftI2C, freq, RTC, reset
 from esp32 import raw_temperature
 from time import sleep
-from ubinascii import hexlify
+from ubinascii import hexlify, b2a_base64
 import uasyncio as asyncio
 import _thread
 # LIBRERIA WIFI
@@ -239,8 +239,7 @@ async def tm_sync(host):
             print('Servidor NTP:', host)
             await asyncio.sleep(1)
             settime()
-            (year, month, mday, weekday, hour, minute,
-             second, milisecond) = RTC().datetime()
+            (year, month, mday, weekday, hour, minute, second, milisecond) = RTC().datetime()
             RTC().init((year, month, mday, weekday, hour-7, minute, second, milisecond))
             print("Tiempo sincronizado:", tm_stmp())
             collect()
@@ -282,7 +281,10 @@ def msg_tx():
             standby['estado'] = True
         a['coretemp'] = esp_temp()
         a['timestamp'] = tm_stmp()
-        return bytes(dumps(a), 'UTF-8')
+        if(secret['base64'] == True):
+            return b2a_base64(bytes(dumps(a), 'UTF-8'))
+        else:
+            return bytes(dumps(a), 'UTF-8')
     except ValueError as e:
         print('Error al procesar paquete JSON de salida:', e, tm_stmp())
 
