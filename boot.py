@@ -9,7 +9,7 @@
 from machine import Pin, SoftI2C, freq, RTC, reset
 from esp32 import raw_temperature
 from time import sleep
-from ubinascii import hexlify, b2a_base64
+from ubinascii import hexlify, b2a_base64, a2b_base64
 import uasyncio as asyncio
 import _thread
 # LIBRERIA WIFI
@@ -41,7 +41,8 @@ collect()
 # CARGAR ARCHIVO SECRETO
 with open("secret.json") as f:
     secret = load(f)
-    print('Se cargo archivo secret...')
+    if secret['c_log'] == True:
+        print('Se cargo archivo secret...')
     f.close()
     sleep(2)
     collect()
@@ -49,7 +50,8 @@ with open("secret.json") as f:
 # CARGAR ARCHIVO STANDBY
 with open("standby.json") as f:
     standby = load(f)
-    print("Se cargo archivo standby...")
+    if secret['c_log'] == True:
+        print("Se cargo archivo standby...")
     f.close()
     sleep(2)
     collect()
@@ -57,7 +59,8 @@ with open("standby.json") as f:
 # ESP32
 freq(240000000)
 freq_esp = freq()/1000000
-print(f'Frecuencia de operacion ESP32: {freq_esp} MHz')
+if secret['c_log'] == True:
+    print(f'Frecuencia de operacion ESP32: {freq_esp} MHz')
 sleep(2)
 collect()
 
@@ -118,7 +121,8 @@ def oled_r5(msg, x):
 
 def oled_reng(x):
     if x < 0 or x > 5:
-        print("OLED SIN RENGLON")
+        if secret['c_log'] == True:
+            print("OLED SIN RENGLON")
         oled.fill(0)
         oled.text('ERROR OLED', 0, 10)
         oled.text('NO RENGLON', 0, 30)
@@ -180,16 +184,19 @@ try:
             break
 except:
     pass
-print('Dispositivo Termometor DS18B20 Encontrado:', roms)
+if secret['c_log'] == True:
+    print('Dispositivo Termometor DS18B20 Encontrado:', roms)
 collect()
 
 # INICIALIZANDO WIFI
 collect()
 wlan = WLAN(STA_IF)
 sleep(1)
-print('Iniciando Controlador Wifi modo cliente...')
+if secret['c_log'] == True:
+    print('Iniciando Controlador Wifi modo cliente...')
 mac = hexlify(WLAN().config('mac'), ':').decode()
-print('MAC Address de Controlador wifi:', str.upper(mac))
+if secret['c_log'] == True:
+    print('MAC Address de Controlador wifi:', str.upper(mac))
 sleep(1)
 collect()
 
@@ -199,7 +206,8 @@ def do_conn_sync(ssid, passwd):
     collect()
     if wlan.isconnected():
         return None
-    print('Intentando conexion a %s...' % ssid, tm_stmp())
+    if secret['c_log'] == True:
+        print('Intentando conexion a %s...' % ssid, tm_stmp())
     wlan.connect(ssid, passwd)
     collect()
     for retry in range(100):
@@ -208,17 +216,19 @@ def do_conn_sync(ssid, passwd):
         if connected:
             break
         sleep(0.1)
-        print('.', end='')
+        if secret['c_log'] == True:
+            print('.', end='')
         collect()
     if connected:
-        print('\n¡Conexión Inalámbrica Exitosa!', tm_stmp())
-        print(
-            f'Configuración de red\nIP: {wlan.ifconfig()[0]}\nNetmask: {wlan.ifconfig()[1]} \nGateway: {wlan.ifconfig()[2]}\nDNS: {wlan.ifconfig()[3]}')
-        print('Sincronizando con servidor NTP...', tm_stmp())
+        if secret['c_log'] == True:
+            print('\n¡Conexión Inalámbrica Exitosa!', tm_stmp())
+            print(f'Configuración de red\nIP: {wlan.ifconfig()[0]}\nNetmask: {wlan.ifconfig()[1]} \nGateway: {wlan.ifconfig()[2]}\nDNS: {wlan.ifconfig()[3]}')
+            print('Sincronizando con servidor NTP...', tm_stmp())
         asyncio.run(tm_sync(secret['ntp_host']))
         collect()
     else:
-        print('\nIntento de Conexion Fallido: ' + ssid, tm_stmp())
+        if secret['c_log'] == True:
+            print('\nIntento de Conexion Fallido: ' + ssid, tm_stmp())
         collect()
     return connected
 
@@ -236,21 +246,25 @@ async def tm_sync(host):
     while r == 0:
         try:
             host = host
-            print('Servidor NTP:', host)
+            if secret['c_log'] == True:
+                print('Servidor NTP:', host)
             await asyncio.sleep(1)
             settime()
             (year, month, mday, weekday, hour, minute, second, milisecond) = RTC().datetime()
             RTC().init((year, month, mday, weekday, hour-7, minute, second, milisecond))
-            print("Tiempo sincronizado:", tm_stmp())
+            if secret['c_log'] == True:
+                print("Tiempo sincronizado:", tm_stmp())
             collect()
             r = 1
         except OverflowError as e:
-            print('ERROR DESBORDAMIENTO DE MEMORIA')
-            print(e)
+            if secret['c_log'] == True:
+                print('ERROR DESBORDAMIENTO DE MEMORIA')
+                print(e)
             reset()
         except OSError as e:
-            print('Error de conexion con servidor...')
-            print(e)
+            if secret['c_log'] == True:
+                print('Error de conexion con servidor...')
+                print(e)
             reset()
 
 # PAQUETES JSON
@@ -286,13 +300,16 @@ def msg_tx():
         else:
             return bytes(dumps(a), 'UTF-8')
     except ValueError as e:
-        print('Error al procesar paquete JSON de salida:', e, tm_stmp())
+        if secret['c_log'] == True:
+            print('Error al procesar paquete JSON de salida:', e, tm_stmp())
 
 
 def msg_rx(r):
     global task
     collect()
     try:
+        if(secret['base64'] == True):
+            r = a2b_base64(r)
         b = loads(r)
         if b['comando'] == True:
             if boiler_in() == 1:
@@ -309,10 +326,12 @@ def msg_rx(r):
                 standby['timer'] = 0
                 a['com_rx'] = False        
         else:
-            print("Error en mando", tm_stmp())
+            if secret['c_log'] == True:
+                print("Error en mando", tm_stmp())
         collect()
     except ValueError as e:
-        print('Error al procesar paquete JSON de entrada:', e, tm_stmp())
+        if secret['c_log'] == True:
+            print('Error al procesar paquete JSON de entrada:', e, tm_stmp())
 
 # MQTT
 
@@ -329,9 +348,11 @@ async def main_mqtt(client):
     await client.connect()
     while True:
         await client.publish(bytes(secret['topic_pub'], 'UTF-8'), msg_tx(), qos=1)
-        print('Paquete MQTT enviado...', tm_stmp())
+        if secret['c_log'] == True:
+            print('Paquete MQTT enviado...', tm_stmp())
         save_standby()
-        print('Estado standby salvado...', tm_stmp())
+        if secret['c_log'] == True:
+            print('Estado standby salvado...', tm_stmp())
         await asyncio.sleep(1)
         collect()
 
@@ -345,7 +366,8 @@ config['client_id'] = secret['client_mqtt']
 collect()
 MQTTClient.DEBUG = True
 client = MQTTClient(config)
-print('Parametros de conexion a servidor MQTT Cargados...')
+if secret['c_log'] == True:
+    print('Parametros de conexion a servidor MQTT Cargados...')
 sleep(2)
 collect()
 
@@ -360,11 +382,13 @@ def res_boton():
         btn_prev = boton_reset.value()
         sleep(0.04)
     collect()
-    print('Boton Reset Presionado', tm_stmp())
+    if secret['c_log'] == True:
+        print('Boton Reset Presionado', tm_stmp())
     standby['estado'] = False
     standby['timer'] = 0
     save_standby()
-    print('Se guardio estado y timer en 0', tm_stmp())
+    if secret['c_log'] == True:
+        print('Se guardio estado y timer en 0', tm_stmp())
     reset()
 
 
@@ -382,12 +406,14 @@ def on_boton():
             collect()
             a['com_rx'] = False
             a['timer'] = 0
-            print('Boton OFF Presionado', tm_stmp())
+            if secret['c_log'] == True:
+                print('Boton OFF Presionado', tm_stmp())
         else:
             collect()
             boiler_out.on()
             task = asyncio.create_task(boiler_on())
-            print('Boton ON Presionado', tm_stmp())
+            if secret['c_log'] == True:
+                print('Boton ON Presionado', tm_stmp())
 
 
 async def cuenta(t):
@@ -409,7 +435,8 @@ async def cuenta(t):
 async def boiler_on():
     timer = int(secret['timer'])
     hora(timer)
-    print('Inicia Secuencia de Encendido...', tm_stmp())
+    if secret['c_log'] == True:
+        print('Inicia Secuencia de Encendido...', tm_stmp())
     boiler_out.on()
     led.on()
     oled_reng(2)
@@ -418,7 +445,8 @@ async def boiler_on():
     collect()
     await cuenta(timer)
     collect()
-    print('Temporizador terminado...', tm_stmp())
+    if secret['c_log'] == True:
+        print('Temporizador terminado...', tm_stmp())
     boiler_out.off()
     led.off()
     await boiler_off()
@@ -426,7 +454,8 @@ async def boiler_on():
 
 
 async def boiler_off():
-    print('Inicia Secuencia de Apagado...', tm_stmp())
+    if secret['c_log'] == True:
+        print('Inicia Secuencia de Apagado...', tm_stmp())
     boiler_out.off()
     led.off()
     oled_reng(2)
@@ -438,7 +467,8 @@ async def boiler_off():
 async def boiler_continue():
     timer = int(standby['timer'])
     hora(timer)
-    print('Inicia Secuencia de Encendido...', tm_stmp())
+    if secret['c_log'] == True:
+        print('Inicia Secuencia de Encendido...', tm_stmp())
     boiler_out.on()
     led.on()
     oled_reng(2)
@@ -447,7 +477,8 @@ async def boiler_continue():
     collect()
     await cuenta(timer)
     collect()
-    print('Temporizador terminado...', tm_stmp())
+    if secret['c_log'] == True:
+        print('Temporizador terminado...', tm_stmp())
     boiler_out.off()
     led.off()
     await boiler_off()
@@ -475,11 +506,14 @@ def sh_temp():
                 oled.show()
                 collect()
         except OneWireError:
-            print('Error en sensor de temperatura...', tm_stmp())
+            if secret['c_log'] == True:
+                print('Error en sensor de temperatura...', tm_stmp())
         except RuntimeError as e:
-            print('OneWire Error:' + e, tm_stmp())
+            if secret['c_log'] == True:
+                print('OneWire Error:' + e, tm_stmp())
         except:
-            print('OneWireError desconocido...', tm_stmp())
+            if secret['c_log'] == True:
+                print('OneWireError desconocido...', tm_stmp())
         sleep(1)
 
 
@@ -506,7 +540,8 @@ try:
     oled_r2('Parametros: OK!', 0)
     sleep(1)
 except:
-    print('Error OLED...')
+    if secret['c_log'] == True:
+        print('Error OLED...')
 
 collect()
 
@@ -520,7 +555,8 @@ try:
         else:
             do_conn_sync(secret['ssid'], secret['password'])
 except:
-    print('Error conexion Wifi y Sync...')
+    if secret['c_log'] == True:
+        print('Error conexion Wifi y Sync...')
 
 collect()
 
@@ -528,14 +564,17 @@ try:
     p = ping(secret['mqtt_server'])
     if p[1] == 4:
         oled_r5('MQTT Server:OK!', 0)
-        print('Servidor MQTT en Linea...')
+        if secret['c_log'] == True:
+            print('Servidor MQTT en Linea...')
     elif p[1] > 0 or p[1] < 4:
         oled_r5('MQTT Serv: Weak', 0)
     elif p[1] == 0:
         oled_r5('MQTT Serv: OFF!', 0)
-        print('Servidor MQTT Fuera de Linea...')
+        if secret['c_log'] == True:
+            print('Servidor MQTT Fuera de Linea...')
 except:
-    print('Error conexion servidor MQTT')
+    if secret['c_log'] == True:
+        print('Error conexion servidor MQTT')
 
 sleep(5)
 collect()
@@ -549,7 +588,8 @@ while True:
     collect()
     if bt != None:
         a['temperatura'] = round(bt, 2)
-        print('Purga de valores de temperatura:', a['temperatura'], '°C')
+        if secret['c_log'] == True:
+            print('Purga de valores de temperatura:', a['temperatura'], '°C')
         break
     sleep(1)
 collect()
@@ -577,11 +617,12 @@ def save_standby():
 
 def ultimo_estado():
     if standby['estado'] == True:
-        print('Se detecto una operación interurmpida...')
-        sleep(2)
-        print('Se incia secuencia de continuacion de operación...')
-        sleep(2)
-        print('standby.json = ', standby)
+        if secret['c_log'] == True:
+            print('Se detecto una operación interurmpida...')
+            sleep(2)
+            print('Se incia secuencia de continuacion de operación...')
+            sleep(2)
+            print('standby.json = ', standby)
         task = asyncio.create_task(boiler_continue())
     else:
         print('No hay operacion interrumpida...')
@@ -600,5 +641,6 @@ _thread.start_new_thread(ultimo_estado, ())
 collect()
 asyncio.run(main_mqtt(client))
 collect()
+
 
 
