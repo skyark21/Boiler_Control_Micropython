@@ -126,7 +126,7 @@ def oled_reng(x):
         oled.fill(0)
         oled.text('ERROR OLED', 0, 10)
         oled.text('NO RENGLON', 0, 30)
-       boton_on_off oled.show()
+        oled.show()
         collect()
     if x >= 0 or x <= 5:
         oled.fill_rect(0, (x*10), 128, 10, 0)
@@ -222,7 +222,8 @@ def do_conn_sync(ssid, passwd):
     if connected:
         if secret['c_log']:
             print('\n¡Conexión Inalámbrica Exitosa!', time_stamp())
-            print(f'Configuración de red\nIP: {wlan.ifconfig()[0]}\nNetmask: {wlan.ifconfig()[1]} \nGateway: {wlan.ifconfig()[2]}\nDNS: {wlan.ifconfig()[3]}')
+            print(
+                f'Configuración de red\nIP: {wlan.ifconfig()[0]}\nNetmask: {wlan.ifconfig()[1]} \nGateway: {wlan.ifconfig()[2]}\nDNS: {wlan.ifconfig()[3]}')
             print('Sincronizando con servidor NTP...', time_stamp())
         asyncio.run(time_sync(secret['ntp_host']))
         collect()
@@ -250,7 +251,8 @@ async def time_sync(host):
                 print('Servidor NTP:', host)
             await asyncio.sleep(1)
             settime()
-            (year, month, mday, weekday, hour, minute, second, milisecond) = RTC().datetime()
+            (year, month, mday, weekday, hour, minute,
+             second, milisecond) = RTC().datetime()
             RTC().init((year, month, mday, weekday, hour-7, minute, second, milisecond))
             if secret['c_log']:
                 print("Tiempo sincronizado:", time_stamp())
@@ -324,7 +326,7 @@ def payload_rx(r):
                 boiler_out.off()
                 a['timer'] = 0
                 standby['timer'] = 0
-                a['com_rx'] = False        
+                a['com_rx'] = False
         else:
             if secret['c_log']:
                 print("Error en mando", time_stamp())
@@ -641,6 +643,3 @@ _thread.start_new_thread(last_state, ())
 collect()
 asyncio.run(main_mqtt(client))
 collect()
-
-
-
