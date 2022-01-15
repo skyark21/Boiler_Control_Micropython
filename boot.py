@@ -627,7 +627,8 @@ def last_state():
             print('standby.json = ', standby)
         task = asyncio.create_task(boiler_continue())
     else:
-        print('No hay operacion interrumpida...')
+        if secret['c_log']:
+            print('No hay operacion interrumpida...')
 
 
 collect()
@@ -643,3 +644,5 @@ _thread.start_new_thread(last_state, ())
 collect()
 asyncio.run(main_mqtt(client))
 collect()
+
+
