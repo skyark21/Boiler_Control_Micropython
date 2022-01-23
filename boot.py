@@ -355,7 +355,7 @@ async def main_mqtt(client):
         save_standby()
         if secret['c_log']:
             print('Estado standby salvado...', time_stamp())
-        await asyncio.sleep(1)
+        await asyncio.sleep(secret['report_delay'])
         collect()
 
 config['subs_cb'] = callback
